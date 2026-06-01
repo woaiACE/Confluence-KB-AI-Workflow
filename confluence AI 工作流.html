@@ -1,0 +1,578 @@
+<!DOCTYPE html> 
+<html lang="zh-CN"> 
+<head> 
+    <meta charset="UTF-8"> 
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"> 
+    <title>多智能体知识库 AI 工作流详细配置图</title> 
+    <style> 
+        :root { 
+            --bg-canvas: #f8fafc; 
+            --bg-panel: #ffffff; 
+            --primary: #2563eb; 
+            --primary-light: #dbeafe; 
+            --text-main: #0f172a; 
+            --text-muted: #64748b; 
+            --border-color: #e2e8f0; 
+            --node-agent: #ec4899; 
+            --node-file: #8b5cf6; 
+            --node-kb: #0891b2; 
+            --node-llm: #3b82f6; 
+            --node-code: #f59e0b; 
+            --node-if: #ef4444; 
+        } 
+ 
+        * { box-sizing: border-box; margin: 0; padding: 0; } 
+        body { 
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; 
+            background: var(--bg-canvas); 
+            color: var(--text-main); 
+            display: flex; 
+            flex-direction: column; 
+            height: 100vh; 
+            overflow: hidden; 
+        } 
+ 
+        /* --- Header --- */ 
+        header { 
+            background: var(--bg-panel); 
+            padding: 16px 24px; 
+            border-bottom: 1px solid var(--border-color); 
+            display: flex; 
+            justify-content: space-between; 
+            align-items: center; 
+            z-index: 10; 
+        } 
+        .header-title h1 { font-size: 1.2rem; font-weight: 700; color: #1e3a8a; } 
+        .header-title p { font-size: 0.8rem; color: var(--text-muted); margin-top: 4px; } 
+ 
+        /* --- Layout --- */ 
+        .app-container { 
+            display: flex; 
+            flex: 1; 
+            overflow: hidden; 
+        } 
+ 
+        /* --- Horizontal Canvas --- */ 
+        .canvas-area { 
+            flex: 1; 
+            overflow: auto; 
+            padding: 40px; 
+            background-image: radial-gradient(#cbd5e1 1px, transparent 1px); 
+            background-size: 20px 20px; 
+            display: flex; 
+            align-items: center; 
+            justify-content: flex-start; 
+        } 
+ 
+        .flow-container { 
+            display: flex; 
+            align-items: center; 
+            gap: 30px; 
+            min-width: max-content; /* Allows horizontal scrolling */ 
+        } 
+ 
+        /* --- Nodes --- */ 
+        .node { 
+            background: var(--bg-panel); 
+            border-radius: 12px; 
+            padding: 16px; 
+            width: 240px; 
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03); 
+            border: 1px solid var(--border-color); 
+            border-top: 4px solid var(--primary); 
+            cursor: pointer; 
+            transition: all 0.2s; 
+            position: relative; 
+            flex-shrink: 0; 
+        } 
+        .node:hover { 
+            transform: translateY(-2px); 
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.08); 
+            border-color: #bfdbfe; 
+        } 
+        .node.selected { 
+            border-color: var(--primary); 
+            box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.2); 
+        } 
+         
+        .node.master-agent { border-top-color: var(--node-agent); width: 280px; } 
+        .node.type-file { border-top-color: var(--node-file); } 
+        .node.type-kb { border-top-color: var(--node-kb); } 
+        .node.type-llm { border-top-color: var(--node-llm); } 
+        .node.type-code { border-top-color: var(--node-code); } 
+        .node.type-if { border-top-color: var(--node-if); } 
+ 
+        .node-badge { 
+            font-size: 0.65rem; 
+            padding: 2px 8px; 
+            border-radius: 10px; 
+            font-weight: 700; 
+            margin-bottom: 8px; 
+            display: inline-block; 
+        } 
+        .node.master-agent .node-badge { background: #fce7f3; color: #9d174d; } 
+        .node.type-file .node-badge { background: #ede9fe; color: #5b21b6; } 
+        .node.type-kb .node-badge { background: #cffafe; color: #155e75; } 
+        .node.type-llm .node-badge { background: #dbeafe; color: #1e40af; } 
+        .node.type-code .node-badge { background: #fef3c7; color: #92400e; } 
+        .node.type-if .node-badge { background: #fee2e2; color: #991b1b; } 
+ 
+        .node-title { font-size: 0.95rem; font-weight: 700; margin-bottom: 6px; } 
+        .node-desc { font-size: 0.75rem; color: var(--text-muted); line-height: 1.4; } 
+ 
+        /* --- Connectors (Horizontal) --- */ 
+        .h-connector { 
+            width: 40px; 
+            height: 2px; 
+            background: #cbd5e1; 
+            position: relative; 
+            flex-shrink: 0; 
+        } 
+        .h-connector::after { 
+            content: ''; 
+            position: absolute; 
+            right: -2px; 
+            top: -4px; 
+            border-width: 5px 0 5px 6px; 
+            border-style: solid; 
+            border-color: transparent transparent transparent #cbd5e1; 
+        } 
+ 
+        /* --- Tool Flow Groups --- */ 
+        .tool-group { 
+            display: flex; 
+            flex-direction: column; 
+            gap: 40px; 
+            padding: 20px; 
+            background: rgba(241, 245, 249, 0.7); 
+            border: 2px dashed #cbd5e1; 
+            border-radius: 16px; 
+            position: relative; 
+        } 
+        .tool-row { 
+            display: flex; 
+            align-items: center; 
+            gap: 15px; 
+        } 
+        .tool-title { 
+            position: absolute; 
+            top: -12px; 
+            left: 20px; 
+            background: #334155; 
+            color: #fff; 
+            padding: 2px 12px; 
+            border-radius: 12px; 
+            font-size: 0.75rem; 
+            font-weight: bold; 
+        } 
+ 
+        /* Forking Lines from Master Agent */ 
+        .fork-container { 
+            display: flex; 
+            flex-direction: column; 
+            justify-content: center; 
+            position: relative; 
+            height: 100%; 
+            width: 40px; 
+            flex-shrink: 0; 
+        } 
+        .fork-line-vert { 
+            position: absolute; 
+            left: 0; 
+            top: 25%; 
+            bottom: 25%; 
+            width: 2px; 
+            background: #cbd5e1; 
+        } 
+        .fork-line-horiz { 
+            position: absolute; 
+            height: 2px; 
+            width: 100%; 
+            background: #cbd5e1; 
+        } 
+        .fork-line-horiz.top { top: 25%; } 
+        .fork-line-horiz.bottom { bottom: 25%; } 
+        .fork-line-horiz::after { 
+            content: ''; 
+            position: absolute; 
+            right: -2px; 
+            top: -4px; 
+            border-width: 5px 0 5px 6px; 
+            border-style: solid; 
+            border-color: transparent transparent transparent #cbd5e1; 
+        } 
+ 
+        /* --- Inspector Panel (Right) --- */ 
+        .inspector { 
+            width: 450px; 
+            background: var(--bg-panel); 
+            border-left: 1px solid var(--border-color); 
+            display: flex; 
+            flex-direction: column; 
+            box-shadow: -4px 0 15px rgba(0,0,0,0.03); 
+            z-index: 20; 
+        } 
+        .inspector-header { 
+            padding: 20px 24px; 
+            border-bottom: 1px solid var(--border-color); 
+            background: #f8fafc; 
+        } 
+        .inspector-title { font-size: 1.1rem; font-weight: 700; color: #0f172a; margin-top: 6px; } 
+         
+        .inspector-body { 
+            flex: 1; 
+            overflow-y: auto; 
+            padding: 24px; 
+            display: flex; 
+            flex-direction: column; 
+            gap: 20px; 
+        } 
+ 
+        .config-group { 
+            display: flex; 
+            flex-direction: column; 
+            gap: 8px; 
+        } 
+        .config-title { 
+            font-size: 0.8rem; 
+            font-weight: 700; 
+            color: #475569; 
+            text-transform: uppercase; 
+            letter-spacing: 0.05em; 
+            display: flex; 
+            align-items: center; 
+            gap: 6px; 
+        } 
+         
+        .code-box { 
+            background: #1e293b; 
+            color: #e2e8f0; 
+            padding: 12px; 
+            border-radius: 8px; 
+            font-family: 'Courier New', Courier, monospace; 
+            font-size: 0.75rem; 
+            overflow-x: auto; 
+            line-height: 1.5; 
+        } 
+         
+        .param-table { 
+            width: 100%; 
+            border-collapse: collapse; 
+            font-size: 0.8rem; 
+        } 
+        .param-table th, .param-table td { 
+            border: 1px solid var(--border-color); 
+            padding: 8px 10px; 
+            text-align: left; 
+        } 
+        .param-table th { background: #f1f5f9; font-weight: 600; color: #475569; width: 35%; } 
+        .param-table td { color: #0f172a; word-break: break-all; } 
+ 
+        .tag-wrap { display: flex; gap: 6px; flex-wrap: wrap; } 
+        .tag-sm { background: #e2e8f0; color: #475569; padding: 2px 8px; border-radius: 4px; font-size: 0.7rem; font-family: monospace;} 
+ 
+        .empty-state { 
+            display: flex; 
+            flex-direction: column; 
+            align-items: center; 
+            justify-content: center; 
+            height: 100%; 
+            color: #94a3b8; 
+            text-align: center; 
+            padding: 40px; 
+        } 
+    </style> 
+</head> 
+<body> 
+ 
+    <header> 
+        <div class="header-title"> 
+            <h1>全栈知识库智能入库：多智能体详细配置图</h1> 
+            <p>基于 Master Agent 路由的双工作流工具架构（点击节点查看代码与 Prompt）</p> 
+        </div> 
+    </header> 
+ 
+    <div class="app-container"> 
+         
+        <!-- Canvas Area --> 
+        <div class="canvas-area"> 
+            <div class="flow-container"> 
+                 
+                <!-- Master Agent (Left) --> 
+                <div class="node master-agent" onclick="showNode('master')"> 
+                    <span class="node-badge">MASTER AGENT</span> 
+                    <h3 class="node-title">🧠 主控路由智能体</h3> 
+                    <p class="node-desc">负责管理用户会话对话，调度体检工具与生成工具，并在聊天窗口渲染确认看板。</p> 
+                </div> 
+ 
+                <!-- Forking Connector --> 
+                <div class="fork-container"> 
+                    <div class="fork-line-vert"></div> 
+                    <div class="fork-line-horiz top"></div> 
+                    <div class="fork-line-horiz bottom"></div> 
+                </div> 
+ 
+                <!-- Tool Workflows (Right) --> 
+                <div class="tool-group"> 
+                     
+                    <!-- Tool 1: Diagnoser Row --> 
+                    <div style="position: relative;"> 
+                        <span class="tool-title">🔧 Tool 1: KB_Diagnoser (诊断流)</span> 
+                        <div class="tool-row" style="margin-top: 15px;"> 
+                             
+                            <div class="node type-file" onclick="showNode('t1_start')"> 
+                                <span class="node-badge">START</span> 
+                                <h3 class="node-title">Start 节点</h3> 
+                                <p class="node-desc">工作流起始节点，接收输入变量。</p> 
+                            </div> 
+                            <div class="h-connector"></div>
+
+                            <div class="node type-if" onclick="showNode('t1_if')"> 
+                                <span class="node-badge">IF ELSE</span> 
+                                <h3 class="node-title">If Else 条件分流</h3> 
+                                <p class="node-desc">判断 input_text 是否为空。</p> 
+                            </div> 
+                            <div class="h-connector"></div> 
+ 
+                            <div class="node type-kb" onclick="showNode('t1_n2')"> 
+                                <span class="node-badge">N2 KNOWLEDGE RETRIEVAL</span> 
+                                <h3 class="node-title">N2 Knowledge Retrieval</h3> 
+                                <p class="node-desc">从 CNCB_KB__CN_SEH 知识库中根据输入文本召回相关文档。</p> 
+                            </div> 
+                            <div class="h-connector"></div> 
+
+                            <div class="node type-code" onclick="showNode('t1_code_2_5')"> 
+                                <span class="node-badge">2_5 CODE EXECUTOR</span> 
+                                <h3 class="node-title">2_5 Code Executor</h3> 
+                                <p class="node-desc">清洗召回数据，提取 URL 与摘要内容，供后续大模型使用。</p> 
+                            </div> 
+                            <div class="h-connector"></div> 
+ 
+                            <div class="node type-llm" onclick="showNode('t1_l3')"> 
+                                <span class="node-badge">L3 LLM</span> 
+                                <h3 class="node-title">L3 LLM</h3> 
+                                <p class="node-desc">执行深度诊断，定性判定类型，推荐标题，输出结构化 JSON。</p> 
+                            </div> 
+                            <div class="h-connector"></div> 
+ 
+                            <div class="node type-code" onclick="showNode('t1_n4')"> 
+                                <span class="node-badge">N4 CODE EXECUTOR</span> 
+                                <h3 class="node-title">N4 Code Executor</h3> 
+                                <p class="node-desc">安全脱壳大模型 JSON 输出，强力清洗和转换为对应原子变量。</p> 
+                            </div> 
+ 
+                        </div> 
+                    </div> 
+ 
+                    <!-- Tool 2: Generator Row --> 
+                    <div style="position: relative; margin-top: 10px;"> 
+                        <span class="tool-title" style="background: #2563eb;">🔧 Tool 2: KB_Generator (生成流)</span> 
+                        <div class="tool-row" style="margin-top: 15px;"> 
+                             
+                            <div class="node type-llm" onclick="showNode('t2_n6')"> 
+                                <span class="node-badge">N6: LLM WRITER</span> 
+                                <h3 class="node-title">长文高压约束扩写</h3> 
+                                <p class="node-desc">基于人类确认后的标题和大纲，还原图片并格式化生成千字长文。</p> 
+                            </div> 
+                            <div class="h-connector"></div> 
+                             
+                            <div class="node type-code" onclick="showNode('t2_n7')"> 
+                                <span class="node-badge">N7: CODE UNPACK</span> 
+                                <h3 class="node-title">终稿要素解包器</h3> 
+                                <p class="node-desc">安全拆解出 Markdown 全文、元数据与未决留白项，返回给 Master 渲染。</p> 
+                            </div> 
+ 
+                        </div> 
+                    </div> 
+ 
+                </div> 
+            </div> 
+        </div> 
+ 
+        <!-- Inspector Panel --> 
+        <div class="inspector"> 
+            <div id="empty-state" class="empty-state"> 
+                <svg width="48" height="48" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 15l-2 5L9 9l11 4-5 2zm0 0l5 5M7.188 2.239l.777 2.897M5.136 7.965l-2.898-.777M13.95 4.05l-2.122 2.122m-5.657 5.656l-2.12 2.122"></path></svg> 
+                <p style="margin-top:12px;">点击左侧横向画布上的节点<br>查看详细参数与核心代码</p> 
+            </div> 
+             
+            <div id="inspector-content" style="display: none; height: 100%; flex-direction: column;"> 
+                <div class="inspector-header"> 
+                    <span id="ins-badge" class="node-badge"></span> 
+                    <h2 id="ins-title" class="inspector-title"></h2> 
+                </div> 
+                 
+                <div class="inspector-body"> 
+                    <!-- Config Box --> 
+                    <div class="config-group" id="group-config"> 
+                        <div class="config-title">⚙️ 详细配置参数</div> 
+                        <table class="param-table" id="ins-config"></table> 
+                    </div> 
+ 
+                    <!-- Input / Output Box --> 
+                    <div class="config-group"> 
+                        <div class="config-title">📥 节点输入输出定义</div> 
+                        <table class="param-table"> 
+                            <tr><th>输入 (Inputs)</th><td id="ins-in"></td></tr> 
+                            <tr><th>输出 (Outputs)</th><td id="ins-out"></td></tr> 
+                        </table> 
+                    </div> 
+ 
+                    <!-- Code / Prompt Box --> 
+                    <div class="config-group" id="group-logic"> 
+                        <div class="config-title" id="logic-title">🧠 核心 Prompt / 代码</div> 
+                        <div class="code-box" id="ins-logic"></div> 
+                    </div> 
+                </div> 
+            </div> 
+        </div> 
+    </div> 
+ 
+    <script> 
+        const db = { 
+            'master': { 
+                badge: 'MASTER AGENT', bg: '#fce7f3', color: '#9d174d', 
+                title: '主控路由智能体', 
+                config: { 
+                    '大模型选择': 'GPT-4o 或 Qwen-Max (需具备强 Tool Call 能力)', 
+                    '挂载工具 (Tools)': 'KB_Diagnoser, KB_Generator', 
+                    '开场白': '您好！请发送需要入库的 Word 文档或直接粘贴草稿，我将为您进行智能体检。' 
+                }, 
+                in: '用户自然语言 / 文件上传', 
+                out: '驱动工具的参数 / 返回给用户的 Markdown 渲染界面', 
+                logicTitle: '🤖 系统提示词 (System Prompt)', 
+                logic: `# 角色\n你是跨境电商物流中心首席知识库总编辑。\n\n# 调度法则\n1. 收到草稿后，立即调用 KB_Diagnoser 工具。\n2. 收到诊断结果后，严禁直接输出 JSON！必须渲染成精美的 Markdown 【体检报告看板】等待用户交互。\n3. 根据用户的自然语言回复（如：“选标题2，删掉第7章”），提取出 confirmed_title, confirmed_type, confirmed_sections。\n4. 将提取的参数作为输入，调用 KB_Generator 工具。\n5. 收到全文后，向用户展示【最终审核发布看板】。` 
+            }, 
+            't1_start': { 
+                badge: 'START', bg: '#ede9fe', color: '#5b21b6', 
+                title: 'Start 节点', 
+                config: { 
+                    '变量名': 'input_text', 
+                    '是否必填': 'required' 
+                }, 
+                in: '外部传入数据', 
+                out: 'input_text (String)', 
+                logicTitle: '💡 说明', 
+                logic: '接收工作流的初始输入文本，包含新文章底稿。' 
+            }, 
+            't1_if': { 
+                badge: 'IF ELSE', bg: '#fee2e2', color: '#991b1b', 
+                title: '条件分支', 
+                config: { 
+                    'IF Priority 1': 'Start.{input_text} Is Empty', 
+                    'ELSE': '进入后续流程' 
+                }, 
+                in: 'Start.{input_text}', 
+                out: 'IF (流向 End) / ELSE (流向 N2 Knowledge Retrieval)', 
+                logicTitle: '🛡️ 分支逻辑', 
+                logic: '如果输入为空，则直接结束（流向 End 节点）；否则进入知识库检索。' 
+            }, 
+            't1_n2': { 
+                badge: 'N2 KNOWLEDGE RETRIEVAL', bg: '#cffafe', color: '#155e75', 
+                title: '知识库检索', 
+                config: { 
+                    '知识库': 'CNCB_KB__CN_SEH (中国卖家学习中心文档)' 
+                }, 
+                in: 'Query Text: Start.{input_text}', 
+                out: 'chunks (Array[Object])', 
+                logicTitle: '🔍 检索目标', 
+                logic: '根据输入文本检索相关的参考文档，输出为 chunks 数组。' 
+            }, 
+            't1_code_2_5': { 
+                badge: '2_5 CODE EXECUTOR', bg: '#fef3c7', color: '#92400e', 
+                title: '检索数据清洗', 
+                config: { 
+                    '节点类型': 'Python 3.12 执行器', 
+                    '功能': '清洗知识库召回结果，精准提取标题、URL及摘要。' 
+                }, 
+                in: 'retrieval_output: N2 Knowledge Retrieval.(chunks)', 
+                out: 'clean_context (String)', 
+                logicTitle: '💻 Python 代码', 
+                logic: `import re\nimport json\n\ndef main(retrieval_output):\n    chunks = []\n    \n    # 1. 暴力拆解平台的各种“隐形套壳”\n    if isinstance(retrieval_output, list):\n        chunks = retrieval_output\n    elif isinstance(retrieval_output, dict):\n        if "value" in retrieval_output and isinstance(retrieval_output["value"], list):\n            chunks = retrieval_output["value"]\n        elif "chunks" in retrieval_output:\n            chunks = retrieval_output["chunks"]\n        elif "data" in retrieval_output:\n            chunks = retrieval_output["data"]\n        else:\n            for k, v in retrieval_output.items():\n                if isinstance(v, list):\n                    chunks = v\n                    break\n\n    if not chunks:\n        return {"clean_context": "⚠️ 解析失败：未能从输入中提取到有效文档列表。"}\n        \n    cleaned_results = []\n    for i, chunk in enumerate(chunks):\n        if not isinstance(chunk, dict):\n            continue\n            \n        raw_text = chunk.get("text", "")\n        title_match = re.search(r'title:\\s*(.*)', raw_text)\n        title = title_match.group(1).strip() if title_match else f"参考文档 {i+1}"\n        \n        url_match = re.search(r'原文请查看：.*?<a href="(https?://[^"]+)"', raw_text)\n        if not url_match:\n            urls = re.findall(r'https?://[^\\s"<>]+/edu/article/\\d+', raw_text)\n            extracted_url = urls[-1] if urls else "无链接"\n        else:\n            extracted_url = url_match.group(1)\n            \n        clean_text = raw_text.replace("<p>", "\\n").replace("</tr>", "\\n")\n        clean_text = re.sub(r'<[^>]+>', '', clean_text)\n        clean_text = re.sub(r'\\n+', '\\n', clean_text).strip()\n        \n        cleaned_results.append(\n            f"【历史参考 {i+1}】\\n标题：{title}\\nURL：{extracted_url}\\n摘要内容：\\n{clean_text[:600]}..."\n        )\n        \n    return {"clean_context": "\\n\\n".join(cleaned_results)}` 
+            }, 
+            't1_l3': { 
+                badge: 'L3 LLM', bg: '#dbeafe', color: '#1e40af', 
+                title: '定性诊断与结构化 (大模型)', 
+                config: { 
+                    '大模型': 'gpt-5.4-mini (View Only)' 
+                }, 
+                in: '【新文章底稿】：Start.{input_text}\n【清洗后的历史参考知识库】：2_5Code Executor.{clean_context}', 
+                out: 'response_str (String)\noutput_attachments (Array[Object])\ntoken_usage (Object)', 
+                logicTitle: '🤖 诊断 Prompt', 
+                logic: `角色\n你是跨境电商物流客服团队（Service Operations Center）的资深知识库架构编辑。你的任务是基于运营提交的【新文章底稿】，结合【历史参考知识】，进行深度语义理解，并一次性完成：内容摘要、标准化标题推荐、文档类型精准判定、章节结构建议、以及跨文档关联推荐。\n\n⚙️ 任务执行指令（死命令）\n【判定类型与合规预警】：为底稿定性。如果判定为「公告」，必须严格审查文中是否夹带了长期规则。一旦发现，必须在输出 JSON 的 warning 中标记为 true 并撰写警告详情。\n【标题推荐】：推荐 5 个符合规范的标题。必须对比历史文章，绝对避免标题撞车！\n【结构拆解】：根据定性，为新底稿匹配最适合客服团队阅读的 Markdown 章节树（如 一、适用范围），并说明理由。\n【精准关联与 URL 提取】：仔细阅读历史文章，挑选出 1-3 篇与新底稿最相关的文章。必须 1:1 照抄 URL 链接，严禁伪造！\n\n⚠️ 输出限制（严格遵循 JSON）\n必须且只能返回标准的 JSON 对象。严禁包裹任何 Markdown 代码块标记（如 \`\`\`json），严禁包含任何口语化废话。` 
+            }, 
+            't1_n4': { 
+                badge: 'N4 CODE EXECUTOR', bg: '#fef3c7', color: '#92400e', 
+                title: '诊断变量安全解包器', 
+                config: { 
+                    '节点类型': 'Python 3.12 执行器', 
+                    '功能': '解析 L3 LLM 输出的 JSON，提取为各个离散的输出变量。' 
+                }, 
+                in: 'response_str: L3 LLM.{response_str}', 
+                out: 'confidence, cross_refs, has_long_term, primary_type, sections, summary, titles, warning_detail', 
+                logicTitle: '💻 Python 代码', 
+                logic: `import json\n\ndef main(response_str) -> dict:\n    # 1. 核心修复：防御性脱壳。如果平台传入的是 dict 字典，自动抠出里面的文本内容\n    if isinstance(response_str, dict):\n        if "response_str" in response_str:\n            response_str = response_str["response_str"]\n        elif "text" in response_str:\n            response_str = response_str["text"]\n        elif "content" in response_str:\n            response_str = response_str["content"]\n        else:\n            # 极限兜底：如果都不是，尝试取字典里的第一个值\n            response_str = next(iter(response_str.values())) if response_str else ""\n            \n    # 强制确保转化为标准的 Python 字符串类型\n    response_str = str(response_str)\n\n    # 2. 强力清洗 Claude 吐出来的 \`\`\`json 和 \`\`\` 标记\n    clean_str = response_str.strip()\n    if clean_str.startswith("\`\`\`json"):\n        clean_str = clean_str[7:]\n    elif clean_str.startswith("\`\`\`"):\n        clean_str = clean_str[3:]\n    if clean_str.endswith("\`\`\`"):\n        clean_str = clean_str[:-3]\n    clean_str = clean_str.strip()\n    \n    # 3. 安全转化为 Python 字典\n    try:\n        data = json.loads(clean_str)\n    except Exception as e:\n        return {\n            "summary": "JSON解析失败", "titles": [], "primary_type": "规则",\n            "confidence": 0.0, "has_long_term": False, "warning_detail": str(e),\n            "sections": [], "cross_refs": []\n        }\n    \n    # 4. 提取嵌套字段并彻底拍平\n    type_obj = data.get("type", {})\n    warning_obj = data.get("warning", {})\n    \n    # 5. 严丝合缝输出标准一级属性\n    return {\n        "summary": data.get("summary", ""),\n        "titles": data.get("titles", []),\n        "primary_type": type_obj.get("primary", "规则") if isinstance(type_obj, dict) else "规则",\n        "confidence": float(type_obj.get("confidence", 0.85)) if isinstance(type_obj, dict) else 0.85,\n        "has_long_term": bool(warning_obj.get("has_long_term_content", False)) if isinstance(warning_obj, dict) else False,\n        "warning_detail": warning_obj.get("detail", "") if isinstance(warning_obj, dict) else "",\n        "sections": data.get("sections", []),\n        "cross_refs": data.get("cross_refs", [])\n    }` 
+            }, 
+            't2_n6': { 
+                badge: 'N6: LLM WRITER', bg: '#dbeafe', color: '#1e40af', 
+                title: '长文高压约束扩写', 
+                config: { 
+                    '大模型': 'DeepSeek-V3 / Qwen-Max', 
+                    'Temperature': '0.5 (允许适度润色与补充行业常识)', 
+                }, 
+                in: 'confirmed_title, confirmed_type, confirmed_sections (来自 Master)\noriginal_text, images (来自 N1)', 
+                out: 'generator_output (String)', 
+                logicTitle: '🤖 终稿撰写 Prompt', 
+                logic: `## 角色\n你是跨境电商 SOC 首席文档撰写官。\n\n## 任务与排版硬性标准\n1. 【置顶标题】：必须且只能在第一行使用 # {confirmed_title}。\n2. 【严守大纲】：严格按照人类确定的 {confirmed_sections} 逐一扩写，不得私自合并或删减。\n3. 【图文还原】：遇到原稿中的 \`![](https://...)\`，必须一字不落地原样插回正文对应位置。\n4. 【强结构化】：多用祈使句。规则/限制金额强制使用 \`> \` 引用块高亮；多角色分工强制使用 Markdown 表格。\n5. 【高亮留白】：若原文信息缺失，严禁编造！统一使用 \`[待补充：请核固定参数]\` 高亮留白。\n\n输出要求：最后必须将全文和归档元数据封装为 JSON 字符串输出。` 
+            }, 
+            't2_n7': { 
+                badge: 'N7: CODE UNPACK', bg: '#fef3c7', color: '#92400e', 
+                title: '终稿要素解包器', 
+                config: { 
+                    '节点类型': 'Python 3 执行器', 
+                    '主要目的': '安全剥离最终生成的 Markdown 正文、元数据参数、并正则收集文中所有的未决 [待补充] 项列表。' 
+                }, 
+                in: 'generator_output: {{N6.text}}', 
+                out: 'content (String: Markdown 全文)\nmetadata (Object)\narchive_paths (Array)\nplaceholders (Array)', 
+                logicTitle: '💻 Python 3 最终脱壳代码', 
+                logic: `import json\nimport re\n\ndef main(generator_output: str) -> dict:\n    # 兼容剥壳逻辑同 N4...\n    clean_str = strip_markdown_blocks(generator_output)\n    \n    try:\n        data = json.loads(clean_str)\n        content = data.get("content", "")\n    except:\n        # 极限防呆兜底，直接返回大文本\n        content = clean_str\n        data = {}\n        \n    # 正则表达式自动抓取文中所有的 [待补充] 项\n    placeholders = re.findall(r'\\[待补充.*?\\]', content)\n        \n    return {\n        "content": content,\n        "metadata": data.get("metadata", {}),\n        "archive_paths": data.get("archive_paths", []),\n        "placeholders": placeholders\n    }` 
+            } 
+        }; 
+ 
+        function showNode(id) { 
+            // Highlight node 
+            document.querySelectorAll('.node').forEach(n => n.classList.remove('selected')); 
+            event.currentTarget.classList.add('selected'); 
+ 
+            const data = db[id]; 
+            if(!data) return; 
+ 
+            // Toggle Panel 
+            document.getElementById('empty-state').style.display = 'none'; 
+            document.getElementById('inspector-content').style.display = 'flex'; 
+ 
+            // Populate Header 
+            const badge = document.getElementById('ins-badge'); 
+            badge.innerText = data.badge; 
+            badge.style.backgroundColor = data.bg; 
+            badge.style.color = data.color; 
+            document.getElementById('ins-title').innerText = data.title; 
+ 
+            // Populate Config Table 
+            const configTable = document.getElementById('ins-config'); 
+            configTable.innerHTML = ''; 
+            for (const [key, value] of Object.entries(data.config)) { 
+                configTable.innerHTML += `<tr><th>${key}</th><td>${value}</td></tr>`; 
+            } 
+ 
+            // Populate IO 
+            document.getElementById('ins-in').innerHTML = data.in.split('\n').map(item => `<div class="tag-sm" style="margin-bottom:4px">${item}</div>`).join(''); 
+            document.getElementById('ins-out').innerHTML = data.out.split('\n').map(item => `<div class="tag-sm" style="margin-bottom:4px">${item}</div>`).join(''); 
+ 
+            // Populate Logic/Code 
+            document.getElementById('logic-title').innerText = data.logicTitle; 
+            document.getElementById('ins-logic').innerText = data.logic; 
+        } 
+    </script> 
+</body> 
+</html>
