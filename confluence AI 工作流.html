@@ -359,6 +359,12 @@
                                 <span class="node-badge">N4 CODE EXECUTOR</span> 
                                 <h3 class="node-title">N4 Code Executor</h3> 
                                 <p class="node-desc">安全脱壳大模型 JSON 输出，强力清洗和转换为对应原子变量。</p> 
+                            </div>
+                            <div class="h-connector"></div>
+                            <div class="node type-end" onclick="showNode('t1_end')">
+                                <span class="node-badge">END</span>
+                                <h3 class="node-title">End 节点</h3>
+                                <p class="node-desc">结束节点，输出体检结果。</p>
                             </div> 
  
                         </div> 
@@ -369,18 +375,32 @@
                         <span class="tool-title" style="background: #2563eb;">🔧 Tool 2: KB_Generator (生成流)</span> 
                         <div class="tool-row" style="margin-top: 15px;"> 
                              
+                            <div class="node type-file" onclick="showNode('t2_start')">
+                                <span class="node-badge">START</span>
+                                <h3 class="node-title">Start 节点</h3>
+                                <p class="node-desc">工作流起始节点，接收用户确认的多个变量。</p>
+                            </div>
+                            <div class="h-connector"></div>
+
                             <div class="node type-llm" onclick="showNode('t2_n6')"> 
-                                <span class="node-badge">N6: LLM WRITER</span> 
+                                <span class="node-badge">N6 LLM</span>
                                 <h3 class="node-title">长文高压约束扩写</h3> 
                                 <p class="node-desc">基于人类确认后的标题和大纲，还原图片并格式化生成千字长文。</p> 
                             </div> 
                             <div class="h-connector"></div> 
                              
                             <div class="node type-code" onclick="showNode('t2_n7')"> 
-                                <span class="node-badge">N7: CODE UNPACK</span> 
+                                <span class="node-badge">N7 CODE EXECUTOR</span>
                                 <h3 class="node-title">终稿要素解包器</h3> 
                                 <p class="node-desc">安全拆解出 Markdown 全文、元数据与未决留白项，返回给 Master 渲染。</p> 
                             </div> 
+                            <div class="h-connector"></div>
+
+                            <div class="node type-file" onclick="showNode('t2_end')">
+                                <span class="node-badge">END</span>
+                                <h3 class="node-title">End 节点</h3>
+                                <p class="node-desc">结束节点，输出最终的解析内容。</p>
+                            </div>
  
                         </div> 
                     </div> 
@@ -434,14 +454,101 @@
                 badge: 'MASTER AGENT', bg: '#fce7f3', color: '#9d174d', 
                 title: '主控路由智能体', 
                 config: { 
-                    '大模型选择': 'GPT-4o 或 Qwen-Max (需具备强 Tool Call 能力)', 
+                    '大模型选择': 'gpt-5.4-mini',
                     '挂载工具 (Tools)': 'KB_Diagnoser, KB_Generator', 
                     '开场白': '您好！请发送需要入库的 Word 文档或直接粘贴草稿，我将为您进行智能体检。' 
                 }, 
                 in: '用户自然语言 / 文件上传', 
                 out: '驱动工具的参数 / 返回给用户的 Markdown 渲染界面', 
                 logicTitle: '🤖 系统提示词 (System Prompt)', 
-                logic: `# 角色\n你是跨境电商物流中心首席知识库总编辑。\n\n# 调度法则\n1. 收到草稿后，立即调用 KB_Diagnoser 工具。\n2. 收到诊断结果后，严禁直接输出 JSON！必须渲染成精美的 Markdown 【体检报告看板】等待用户交互。\n3. 根据用户的自然语言回复（如：“选标题2，删掉第7章”），提取出 confirmed_title, confirmed_type, confirmed_sections。\n4. 将提取的参数作为输入，调用 KB_Generator 工具。\n5. 收到全文后，向用户展示【最终审核发布看板】。` 
+                logic: `角色
+
+你是跨境电商物流中心（Service Operations Center）的首席知识库总编辑。你负责引导一线运营专家，将粗糙、凌乱的业务要点，全自动体检并高能扩写为无懈可击、符合 Confluence 标准的标准化客服文章。
+
+🛠️ 核心调度法则 (必须绝对死守的执行顺序)
+
+阶段一：自动派发体检 (激活 Tool 1)
+
+【接收原稿】：当用户在聊天框中上传了 Word/PDF 底稿，或粘贴了一段杂乱的文本文档时，你必须【立即】通过连线激活 @agent={52693} 节点，将该文本传给它进行全身检查。
+
+【渲染 N5 体检报告看板】：收到 @agent={52693} 返回的 8 个平铺原子变量后，严禁直接吐出原始 JSON 源码！你必须严格使用下方【N5 结构确认面板】的模板进行美化排版，并温柔地在聊天框回复用户。
+
+【会话挂起等待】：展示完面板后，停止动作，在聊天框中静静等待人类用户的指令或微调意见。
+
+阶段二：人机意志融合与全文扩写 (激活 Tool 2)
+
+【听懂人类大白话】：人类用户会针对【N5 结构确认面板】在聊天框里随便打字回复（例如：“我选标题3，去掉最后一章，开始生成”）。发挥你强大的大模型推理能力，提取出以下 3 个最终决策参数：
+confirmed_title：根据人类指定的数字或修改意图，确定最终唯一的文章大标题。
+confirmed_type：用户确认或修改后的类型（如：规则、SOP 等）。
+confirmed_sections：过滤并调整顺序后的最终章节大纲列表。
+
+【激活生成流】：整理好上述参数后，通过连线【立即】激活 @agent={52727} 节点，将数据全部派发出去。
+
+阶段三：终极发布看板呈现 (渲染 Tool 2 返回值)
+
+收到 @agent={52727} 传回的 4 个完工变量（content, metadata, archive_paths, placeholders）后，在聊天窗口向人类呈现震撼的【N8 最终审核发布面板】。
+
+📊 看板卡片排版模板 (必须严格使用以下 Markdown 格式)
+
+📋 模版 A：【N5 结构确认面板】（阶段一使用）
+
+📢 运营专家您好！AI 已完成对您上传底稿的深度扫描，以下是结构体检报告：
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+💡【合规风险预警】
+
+⚠️ [如果 has_long_term 为 true，在此处展示 warning_detail 的具体警告内容；若为 false 则写“未检测到显性合规风险”]
+
+📌【请选择最终标题（请在下方回复对应数字，或直接打字微调修改）】
+
+[标题1] - [style 1]
+
+[标题2] - [style 2]
+
+[标题3] - [style 3]
+
+[标题4] - [style 4]
+
+[标题5] - [style 5]
+
+🗂️【请确认文档分类】
+
+当前 AI 强力推荐：{primary_type} (置信度: {confidence * 100}%)
+
+🌿【请确认最终章节大纲（如需增删章节、调整顺序，请随时打字指示）】
+[在此处遍历渲染 sections 数组，格式如下]
+
+章节标题：[reason]
+
+🔗【跨类型关联已有知识（建议沉淀在 Confluence 文末）】
+[在此处遍历相关文章 cross_refs 数组]
+
+{title} ({type}) ── {relation}
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+请随时在下方直接输入您的修改意见（例如：“我选标题 2，去掉最后一章，开始生成”），或直接回复“全部通过”：
+
+🚀 模版 B：【N8 最终审核发布面板】（阶段三使用）
+
+📢 大功告成！AI 已经为您完成了全篇文档的约束扩写与完美排版：
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+【最终标题】：{confirmed_title}
+
+【文档属性】：{confirmed_type}
+
+🚨【发布前待办审计清单（全自动正则抓取）】
+
+⚠️ 警告：检测到文中以下业务数据或对接人信息存在缺失，请在 Confluence 粘贴后手动补齐：
+[在此处以有序列表遍历展示 placeholders 数组。若数组为空，则显示“🎉 完美！全文未发现留白坑位，信息极度完整”]
+
+🗂️【Confluence 推荐归档路径】
+
+[在此处遍历渲染 archive_paths 数组]
+
+📄【Confluence Markdown 文章源码预览】
+
+{content}
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+✅ 架构完全闭环！您可以直接双击复制上方【文章源码预览】卡片里的全部内容，一键粘贴至 Confluence 发布上线！`
             }, 
             't1_start': { 
                 badge: 'START', bg: '#ede9fe', color: '#5b21b6', 
@@ -513,30 +620,66 @@
                 logicTitle: '💻 Python 代码', 
                 logic: `import json\n\ndef main(response_str) -> dict:\n    # 1. 核心修复：防御性脱壳。如果平台传入的是 dict 字典，自动抠出里面的文本内容\n    if isinstance(response_str, dict):\n        if "response_str" in response_str:\n            response_str = response_str["response_str"]\n        elif "text" in response_str:\n            response_str = response_str["text"]\n        elif "content" in response_str:\n            response_str = response_str["content"]\n        else:\n            # 极限兜底：如果都不是，尝试取字典里的第一个值\n            response_str = next(iter(response_str.values())) if response_str else ""\n            \n    # 强制确保转化为标准的 Python 字符串类型\n    response_str = str(response_str)\n\n    # 2. 强力清洗 Claude 吐出来的 \`\`\`json 和 \`\`\` 标记\n    clean_str = response_str.strip()\n    if clean_str.startswith("\`\`\`json"):\n        clean_str = clean_str[7:]\n    elif clean_str.startswith("\`\`\`"):\n        clean_str = clean_str[3:]\n    if clean_str.endswith("\`\`\`"):\n        clean_str = clean_str[:-3]\n    clean_str = clean_str.strip()\n    \n    # 3. 安全转化为 Python 字典\n    try:\n        data = json.loads(clean_str)\n    except Exception as e:\n        return {\n            "summary": "JSON解析失败", "titles": [], "primary_type": "规则",\n            "confidence": 0.0, "has_long_term": False, "warning_detail": str(e),\n            "sections": [], "cross_refs": []\n        }\n    \n    # 4. 提取嵌套字段并彻底拍平\n    type_obj = data.get("type", {})\n    warning_obj = data.get("warning", {})\n    \n    # 5. 严丝合缝输出标准一级属性\n    return {\n        "summary": data.get("summary", ""),\n        "titles": data.get("titles", []),\n        "primary_type": type_obj.get("primary", "规则") if isinstance(type_obj, dict) else "规则",\n        "confidence": float(type_obj.get("confidence", 0.85)) if isinstance(type_obj, dict) else 0.85,\n        "has_long_term": bool(warning_obj.get("has_long_term_content", False)) if isinstance(warning_obj, dict) else False,\n        "warning_detail": warning_obj.get("detail", "") if isinstance(warning_obj, dict) else "",\n        "sections": data.get("sections", []),\n        "cross_refs": data.get("cross_refs", [])\n    }` 
             }, 
+            't1_end': {
+                badge: 'END', bg: '#ede9fe', color: '#5b21b6',
+                title: 'End 节点',
+                config: {
+                    '节点类型': '输出节点'
+                },
+                in: 'confidence, cross_refs, has_long_term, primary_type, sections, summary, titles, warning_detail',
+                out: 'confidence, cross_refs, has_long_term, primary_type, sections, summary, titles, warning_detail',
+                logicTitle: '💡 说明',
+                logic: '流程结束，将 N4 提取的内容输出并传回给外层的 Master Agent 渲染。'
+            },
+            't2_start': {
+                badge: 'START', bg: '#ede9fe', color: '#5b21b6',
+                title: 'Start 节点',
+                config: {
+                    'confirmed_sections (Str)': 'required',
+                    'confirmed_title (Str)': 'required',
+                    'confirmed_type (Str)': 'required',
+                    'images ([])': 'required',
+                    'original_text (Str)': 'required'
+                },
+                in: '外部传入数据',
+                out: 'confirmed_sections, confirmed_title, confirmed_type, images, original_text',
+                logicTitle: '💡 说明',
+                logic: '接收工作流的初始输入文本，包含各项设定好的标题、分类、大纲和原始底稿。'
+            },
             't2_n6': { 
-                badge: 'N6: LLM WRITER', bg: '#dbeafe', color: '#1e40af', 
+                badge: 'N6 LLM', bg: '#dbeafe', color: '#1e40af',
                 title: '长文高压约束扩写', 
                 config: { 
-                    '大模型': 'DeepSeek-V3 / Qwen-Max', 
-                    'Temperature': '0.5 (允许适度润色与补充行业常识)', 
+                    '大模型': 'gpt-5.4-mini'
                 }, 
-                in: 'confirmed_title, confirmed_type, confirmed_sections (来自 Master)\noriginal_text, images (来自 N1)', 
-                out: 'generator_output (String)', 
+                in: 'confirmed_sections, confirmed_title, confirmed_type, images, original_text (来自 Start)',
+                out: 'reasoning_content (String)\nresponse_str (String)\ntoken_usage (Object)',
                 logicTitle: '🤖 终稿撰写 Prompt', 
-                logic: `## 角色\n你是跨境电商 SOC 首席文档撰写官。\n\n## 任务与排版硬性标准\n1. 【置顶标题】：必须且只能在第一行使用 # {confirmed_title}。\n2. 【严守大纲】：严格按照人类确定的 {confirmed_sections} 逐一扩写，不得私自合并或删减。\n3. 【图文还原】：遇到原稿中的 \`![](https://...)\`，必须一字不落地原样插回正文对应位置。\n4. 【强结构化】：多用祈使句。规则/限制金额强制使用 \`> \` 引用块高亮；多角色分工强制使用 Markdown 表格。\n5. 【高亮留白】：若原文信息缺失，严禁编造！统一使用 \`[待补充：请核固定参数]\` 高亮留白。\n\n输出要求：最后必须将全文和归档元数据封装为 JSON 字符串输出。` 
+                logic: `角色\n\n你是跨境电商物流中心（Service Operations Center）的首席技术作家。你拥有极度严谨的文档重组与排版能力，【严禁任何脱离底稿的脑补、泛化与常识编造】。\n\n核心任务\n\n请严格基于【原始底稿】中存在的纯粹事实，按照【最终授权章节大纲】的顺序，将底稿中的业务专有名词、流程和数据，重组并规范化扩写为一篇符合 Confluence 排版规范的文章。\n\n变量输入\n\n确定标题： @var={60427.confirmed_title} \n\n确定分类： @var={60427.confirmed_type} \n\n授权大纲： @var={60427.confirmed_sections} \n\n原始底稿原件： @var={60427.original_text} \n\n📝 撰写与排版绝对红线（核心通用约束）\n\n【置顶标题】：文章第一行必须且只能是 #@var={60427.confirmed_title}。\n\n【死守原件专有名词，严禁行业泛化】：\n\n【铁律】！必须完全围绕 {original_text}  @var={60427.original_text} 中出现的真实业务术语、场景分类和专有名词进行提取与重构。\n\n【严禁】私自将底稿中独特的私有业务场景，泛化、替换或翻译为你底层学过的“行业通用常识”！底稿中叫什么名字，最终文章就必须叫什么名字。\n\n【数据与表格 1:1 像素级映射】：\n\n必须从 {original_text}  @var={60427.original_text} 包含的数据、指标、时效和表格中，把关键要素一条条抠出来，重新用规整的 Markdown 表格 |---|---| 在对应大纲章节下重现。\n\n严禁私自修改原件中的任何数字、阈值或金额限制！\n\n【图片链接原样复制】：原底稿中自带的任何 Markdown 图片链接 ![](https://...) 必须原封不动地抄进最终生成的对应章节中，绝对不准漏掉或更改 URL。\n\n【高亮留白防造假】：如果人类授权的某个章节（来自  @var={60427.confirmed_sections} ），在原始底稿@var={60427.original_text}  中完全找不到任何对应素材或相关提及，严禁使用行业常识私自编造条款！请一律写成 「[待补充：此处原始底稿无对应素材，请运营手动补齐相关内容]」 进行高亮留白。\n\n⚙️ 最终输出格式限制 (JSON)\n\n你写完文章后，必须将其封装在一个标准的 JSON 结构中输出，不要包含任何前后废话。\nJSON 格式严格如下：\n{\n"content": "这里是你生成的带有完美 Markdown 排版的千字文章全文源码...",\n"metadata": {\n"doc_type": "{confirmed_type}",\n"word_count": "全文大约字数"\n},\n"archive_paths": [\n"客服知识库 / 自动匹配相关子目录"\n]\n}`
             }, 
             't2_n7': { 
-                badge: 'N7: CODE UNPACK', bg: '#fef3c7', color: '#92400e', 
+                badge: 'N7 CODE EXECUTOR', bg: '#fef3c7', color: '#92400e',
                 title: '终稿要素解包器', 
                 config: { 
-                    '节点类型': 'Python 3 执行器', 
+                    '节点类型': 'Python v3.12 执行器',
                     '主要目的': '安全剥离最终生成的 Markdown 正文、元数据参数、并正则收集文中所有的未决 [待补充] 项列表。' 
                 }, 
-                in: 'generator_output: {{N6.text}}', 
-                out: 'content (String: Markdown 全文)\nmetadata (Object)\narchive_paths (Array)\nplaceholders (Array)', 
-                logicTitle: '💻 Python 3 最终脱壳代码', 
-                logic: `import json\nimport re\n\ndef main(generator_output: str) -> dict:\n    # 兼容剥壳逻辑同 N4...\n    clean_str = strip_markdown_blocks(generator_output)\n    \n    try:\n        data = json.loads(clean_str)\n        content = data.get("content", "")\n    except:\n        # 极限防呆兜底，直接返回大文本\n        content = clean_str\n        data = {}\n        \n    # 正则表达式自动抓取文中所有的 [待补充] 项\n    placeholders = re.findall(r'\\[待补充.*?\\]', content)\n        \n    return {\n        "content": content,\n        "metadata": data.get("metadata", {}),\n        "archive_paths": data.get("archive_paths", []),\n        "placeholders": placeholders\n    }` 
-            } 
+                in: 'generator_output: N6 LLM.{response_str}',
+                out: 'archive_paths (Array[String])\ncontent (String)\nmetadata (Object)\nplaceholders (Array[String])',
+                logicTitle: '💻 Python 3.12 最终脱壳代码',
+                logic: `import json \nimport re \n \ndef main(generator_output) -> dict: \n    """ \n    N7 Code Executor: \n    1. 自动兼容字典套壳 BUG \n    2. 裁剪剥除 Markdown 标记 (如 \`\`\`json) \n    3. 安全解码 JSON，如解码失败执行异常安全兜底 (防止死流) \n    4. 正则表达式全自动提取全篇 [待补充] 卡点 \n    """ \n     \n    # --- 1. 防御平台底层的字典套壳传递 --- \n    if isinstance(generator_output, dict): \n        for key in ["text", "response_str", "content", "response"]: \n            if key in generator_output: \n                generator_output = generator_output[key] \n                break \n        else: \n            # 极限兜底：如果都找不到，尝试取字典里的第一个值 \n            generator_output = next(iter(generator_output.values())) if generator_output else "" \n \n    clean_str = str(generator_output).strip() \n \n    # --- 2. 剥离 Markdown 代码块包裹 --- \n    if clean_str.startswith("\`\`\`json"): \n        clean_str = clean_str[7:] \n    elif clean_str.startswith("\`\`\`"): \n        clean_str = clean_str[3:] \n         \n    if clean_str.endswith("\`\`\`"): \n        clean_str = clean_str[:-3] \n         \n    clean_str = clean_str.strip() \n \n    # --- 3. JSON 解析与容错防爆 --- \n    content_text = "" \n    metadata_obj = {} \n    archive_paths_list = [] \n \n    try: \n        data = json.loads(clean_str) \n        content_text = data.get("content", "") \n        metadata_obj = data.get("metadata", {}) \n        archive_paths_list = data.get("archive_paths", []) \n    except Exception as e: \n        # 极重要兜底：若 LLM 吐出的 JSON 格式有语法瑕疵，不让系统中断报错， \n        # 而是直接将剥壳后的干净纯文本作为正文输出，并将错误写入元数据。 \n        content_text = clean_str \n        metadata_obj = { \n            "status": "JSON_PARSE_ERROR", \n            "error_detail": str(e) \n        } \n        archive_paths_list = ["默认路径 / 自动解析格式有误"] \n \n    # --- 4. 正则表达式扫描：抓取所有的 [待补充] 项 --- \n    # 支持抓取格式：[待补充]、[待补充：文字描述]、[待补充: 英文描述] \n    placeholders_list = re.findall(r'\\[待补充.*?\\]', content_text) \n \n    # --- 5. 向外抛出 flat (扁平化) 的 4 个标准输出 --- \n    return { \n        "content": content_text, \n        "metadata": metadata_obj, \n        "archive_paths": archive_paths_list, \n        "placeholders": placeholders_list \n    }`
+            },
+            't2_end': {
+                badge: 'END', bg: '#ede9fe', color: '#5b21b6',
+                title: 'End 节点',
+                config: {
+                    '节点类型': '输出节点'
+                },
+                in: 'archive_paths: N7 Code Executor.{archive_paths}\ncontent: N7 Code Executor.{content}\nmetadata: N7 Code Executor.{metadata}\nplaceholders: N7 Code Executor.{placeholders}',
+                out: 'archive_paths, content, metadata, placeholders',
+                logicTitle: '💡 说明',
+                logic: '流程结束，将 N7 提取的内容输出并传回给外层的 Master Agent 渲染。'
+            }
         }; 
  
         function showNode(id) { 
